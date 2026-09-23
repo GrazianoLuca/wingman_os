@@ -13,15 +13,14 @@ import asyncio
 import json
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 
 from nats.js.api import ConsumerConfig, DeliverPolicy
 
 from src.db.database import batch_insert_events, create_tables, get_db_connection
 from src.collectors.nats_client import STREAM_NAME, SUBJECT_PREFIX, connect, ensure_stream
 
-DURABLE_NAME = os.getenv("NATS_DURABLE_NAME", "db-loader")
-BATCH_SIZE = int(os.getenv("LOADER_BATCH_SIZE", "100"))
-BATCH_TIMEOUT_S = float(os.getenv("LOADER_BATCH_TIMEOUT_S", "5"))
+
 
 
 # event_type -> (table name, function turning the published payload into the
@@ -66,16 +65,30 @@ ROW_BUILDERS = {
 def timestamp_str() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
+async def fetch_batch_accumulate(sub, target_batch_size: int, timeout_s: float) -> list:
+    """Accumulates messages until target_batch_size is reached OR timeout_s expires."""
+    msgs = []
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout_s
 
-async def fetch_batch(sub) -> list:
-    """Pull up to BATCH_SIZE messages, waiting at most BATCH_TIMEOUT_S. If no
-    messages arrive in that window, returns an empty list rather than
-    blocking forever — that's what lets the loop stay responsive."""
-    try:
-        return await sub.fetch(BATCH_SIZE, timeout=BATCH_TIMEOUT_S)
-    except asyncio.TimeoutError:
-        return []
+    while len(msgs) < target_batch_size:
+        time_left = deadline - loop.time()
+        if time_left <= 0:
+            break
 
+        fetch_count = target_batch_size - len(msgs)
+        try:
+            # Fetch remaining items with time_left as timeout
+            new_msgs = await sub.fetch(fetch_count, timeout=time_left)
+            msgs.extend(new_msgs)
+        except asyncio.TimeoutError:
+            break
+        except Exception as exc: # e.g. TimeoutError variant in nats client
+            if "timeout" in str(exc).lower():
+                break
+            raise
+
+    return msgs
 
 async def process_batch(db_con, msgs) -> None:
     rows_by_table: dict[str, list] = {}
@@ -98,6 +111,12 @@ async def process_batch(db_con, msgs) -> None:
 
 
 async def run() -> None:
+    load_dotenv()
+    NATS_DURABLE_NAME = os.getenv("NATS_DURABLE_NAME", "db-loader")
+    LOADER_BATCH_SIZE = int(os.getenv("LOADER_BATCH_SIZE", "100"))
+    LOADER_BATCH_TIMEOUT_S = float(os.getenv("LOADER_BATCH_TIMEOUT_S", "60"))
+
+
     db_con = get_db_connection()
     create_tables(db_con)
 
@@ -106,17 +125,17 @@ async def run() -> None:
 
     sub = await js.pull_subscribe(
         f"{SUBJECT_PREFIX}.>",
-        durable=DURABLE_NAME,
+        durable=NATS_DURABLE_NAME,
         stream=STREAM_NAME,
         config=ConsumerConfig(deliver_policy=DeliverPolicy.ALL),
     )
 
-    print(f"Consuming '{SUBJECT_PREFIX}.>' from stream '{STREAM_NAME}' as durable '{DURABLE_NAME}'...")
-    print(f"Batch size={BATCH_SIZE}, batch timeout={BATCH_TIMEOUT_S}s")
+    print(f"Consuming '{SUBJECT_PREFIX}.>' from stream '{STREAM_NAME}' as durable '{NATS_DURABLE_NAME}'...")
+    print(f"Batch size={LOADER_BATCH_SIZE}, batch timeout={LOADER_BATCH_TIMEOUT_S}s")
 
     try:
         while True:
-            msgs = await fetch_batch(sub)
+            msgs = await fetch_batch_accumulate(sub, LOADER_BATCH_SIZE, LOADER_BATCH_TIMEOUT_S)
             if msgs:
                 await process_batch(db_con, msgs)
     finally:

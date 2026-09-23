@@ -5,6 +5,9 @@ one place.
 from __future__ import annotations
 
 import os
+import sys
+import subprocess
+import time
 
 import nats
 from nats.aio.client import Client as NATSClient
@@ -18,6 +21,19 @@ SUBJECT_PREFIX = "tiktok.events"
 
 def subject_for(event_type: str) -> str:
     return f"{SUBJECT_PREFIX}.{event_type}"
+
+def ensure_nats_server(name: str = "nats-server") -> None:
+    """Ensure NATS JetStream container is running."""
+    res = subprocess.run(f"docker inspect -f '{{{{.State.Running}}}}' {name}", shell=True, capture_output=True, text=True)
+    
+    if res.returncode != 0 and "Cannot connect to the Docker daemon" in res.stderr:
+        sys.exit("Error: Docker daemon is not running. Please start Docker/OrbStack and try again.")
+        
+    if "true" not in res.stdout:
+        cmd = f"docker start {name}" if res.returncode == 0 else f"docker run -d --name {name} -p 4222:4222 nats -js"
+        subprocess.run(cmd, shell=True, check=True)
+        time.sleep(1)
+
 
 
 async def connect() -> tuple[NATSClient, JetStreamContext]:

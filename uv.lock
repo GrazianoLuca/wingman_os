@@ -33,7 +33,7 @@ name = "cffi"
 version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz", hash = "sha256:dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be", size = 530807, upload-time = "2026-08-03T21:21:18.939Z" }
 wheels = [
@@ -315,6 +315,15 @@ wheels = [
 ]
 
 [[package]]
+name = "nats-server"
+version = "0.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/37/4de689e5dd962293e9a5d600d8b5302a6ec187db9dc014879336f85e06b8/nats_server-0.0.0.tar.gz", hash = "sha256:eceb71a6fec36a6b0039a71910e90ee549f88b61f493fcc8787e41ee25c722fc", size = 2178, upload-time = "2025-10-14T15:50:58.634Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/85/98ffab6309616dfe0a4e1ffa9e2d4d14d5cc33152c8e65b5790f0bbb4b62/nats_server-0.0.0-py3-none-any.whl", hash = "sha256:e0177cee8cf7075701e5b035a998e6c0804f0549ae71df14c4c1edf8b3ff7fa0", size = 2482, upload-time = "2025-10-14T15:50:57.396Z" },
+]
+
+[[package]]
 name = "nest-asyncio2"
 version = "1.7.3"
 source = { registry = "https://pypi.org/simple" }
@@ -481,7 +490,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -694,31 +703,6 @@ wheels = [
 ]
 
 [[package]]
-name = "test"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "duckdb" },
-    { name = "ipykernel" },
-    { name = "nats-py" },
-    { name = "pandas" },
-    { name = "polars" },
-    { name = "python-dotenv" },
-    { name = "tiktok-live-api" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "duckdb", specifier = ">=1.5.5" },
-    { name = "ipykernel", specifier = ">=7.3.0" },
-    { name = "nats-py", specifier = ">=2.16.0" },
-    { name = "pandas", specifier = ">=3.0.6" },
-    { name = "polars", specifier = ">=1.44.2" },
-    { name = "python-dotenv", specifier = ">=1.2.3" },
-    { name = "tiktok-live-api", specifier = ">=1.8.4" },
-]
-
-[[package]]
 name = "tiktok-live-api"
 version = "1.8.4"
 source = { registry = "https://pypi.org/simple" }
@@ -910,4 +894,31 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/84/77599922ab441bfe61508f97dab2c71f8e114d31793993ea54011db16199/websockets-17.1-cp315-cp315t-win_amd64.whl", hash = "sha256:ad68c28a27246fed109a4409393d677b7e1388345cbbd2f5aee5c182d8506110", size = 217448, upload-time = "2026-08-26T14:58:21.382Z" },
     { url = "https://files.pythonhosted.org/packages/ce/3c/8b9a225b523f06a9389be81f1b0ab07c49bec6014742e6aa359c1f920f1f/websockets-17.1-cp315-cp315t-win_arm64.whl", hash = "sha256:e552e0037230ac16e5f568de7012041344d1b18c9feed30ec2891b8eba55af81", size = 217372, upload-time = "2026-08-26T14:58:22.807Z" },
     { url = "https://files.pythonhosted.org/packages/41/63/23572870e01836a98346075b9e17a8bc24a6ddd9800a3204ceee58677f3c/websockets-17.1-py3-none-any.whl", hash = "sha256:f221081107b8c48184d99f7019604486376e7ef826037e70aad6b02540732c23", size = 211134, upload-time = "2026-08-26T17:25:31.397Z" },
+]
+
+[[package]]
+name = "wingman-os"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "duckdb" },
+    { name = "ipykernel" },
+    { name = "nats-py" },
+    { name = "nats-server" },
+    { name = "pandas" },
+    { name = "polars" },
+    { name = "python-dotenv" },
+    { name = "tiktok-live-api" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "duckdb", specifier = ">=1.5.5" },
+    { name = "ipykernel", specifier = ">=7.3.0" },
+    { name = "nats-py", specifier = ">=2.16.0" },
+    { name = "nats-server", specifier = ">=0.0.0" },
+    { name = "pandas", specifier = ">=3.0.6" },
+    { name = "polars", specifier = ">=1.44.2" },
+    { name = "python-dotenv", specifier = ">=1.2.3" },
+    { name = "tiktok-live-api", specifier = ">=1.8.4" },
 ]
