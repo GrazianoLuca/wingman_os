@@ -12,6 +12,23 @@ from dotenv import load_dotenv
 DB_PATH = Path(__file__).resolve().parent.parent / "database" / "test.db"
 
 
+# ---------------------------------------------------------------------------
+# Formatted terminal output — every event that arrives gets printed, whether
+# or not we have a table/handler for it. This is what lets you visually
+# confirm the connection is actually receiving data.
+# ---------------------------------------------------------------------------
+
+def timestamp_str() -> str:
+    return datetime.now().strftime("%H:%M:%S")
+
+
+def print_event(event_type: str, emoji: str, headline: str, raw_event: dict | None = None) -> None:
+    print(f"[{timestamp_str()}] {emoji} {event_type.upper():<10} | {headline}")
+    if raw_event is not None:
+        # Unrecognized event type — dump the raw payload so you can see its shape
+        print(f"           raw: {json.dumps(raw_event, default=str)[:300]}")
+
+
 def get_db_connection() -> duckdb.DuckDBPyConnection:
     """Open (and create if needed) the DuckDB database file."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -61,23 +78,6 @@ def create_tables(db_con: duckdb.DuckDBPyConnection) -> None:
             nickname VARCHAR
         )
     """)
-
-
-# ---------------------------------------------------------------------------
-# Formatted terminal output — every event that arrives gets printed, whether
-# or not we have a table/handler for it. This is what lets you visually
-# confirm the connection is actually receiving data.
-# ---------------------------------------------------------------------------
-
-def timestamp_str() -> str:
-    return datetime.now().strftime("%H:%M:%S")
-
-
-def print_event(event_type: str, emoji: str, headline: str, raw_event: dict | None = None) -> None:
-    print(f"[{timestamp_str()}] {emoji} {event_type.upper():<10} | {headline}")
-    if raw_event is not None:
-        # Unrecognized event type — dump the raw payload so you can see its shape
-        print(f"           raw: {json.dumps(raw_event, default=str)[:300]}")
 
 
 # ---------------------------------------------------------------------------
