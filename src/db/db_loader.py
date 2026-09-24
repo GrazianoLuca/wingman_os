@@ -25,34 +25,66 @@ from src.collectors.nats_client import STREAM_NAME, SUBJECT_PREFIX, connect, ens
 
 # event_type -> (table name, function turning the published payload into the
 # row tuple that database.TABLE_COLUMNS[table] expects, in order).
-def _chat_row(p: dict) -> tuple:
-    d = p["data"]
-    u = d["user"]
-    return (p["collected_at"], p["streamer"], u["uniqueId"], u["nickname"], d["comment"])
+def _chat_row(event: dict) -> tuple:
+    data = event.get("data", {})
+    collected_at = event.get("collected_at")
 
 
-def _gift_row(p: dict) -> tuple:
-    d = p["data"]
-    u = d["user"]
-    repeat_count = d.get("repeatCount", 1)
-    coin_value = d.get("diamondCount", 0)
+    user = data.get("user", {})
+    comment = data.get("comment", "")
+    uid = user.get("uniqueId")
+    nick = user.get("nickname")
+
+
+    return (collected_at, nick, uid, comment)
+
+
+def _gift_row(event: dict) -> tuple:
+    data = event.get("data", {})
+    collected_at = event.get("collected_at")
+    user = data.get("user", {})
+
+    gift_name = data.get("giftName", "Unknown Gift")
+    repeat_count = data.get("repeatCount", 1)
+    coin_value = data.get("diamondCount", 0)
+
+    uid = user.get("uniqueId")
+    nick = user.get("nickname")
+
     return (
-        p["collected_at"], p["streamer"], u["uniqueId"], u["nickname"],
-        d.get("giftName", "Unknown Gift"), repeat_count, coin_value, repeat_count * coin_value,
+        collected_at, uid, nick,
+        gift_name, repeat_count, coin_value, repeat_count * coin_value,
     )
 
 
-def _social_row(p: dict) -> tuple:
-    d = p["data"]
-    u = d["user"]
-    return (p["collected_at"], p["streamer"], u["uniqueId"], u["nickname"], d.get("action", "interaction"))
+def _social_row(event: dict) -> tuple:
+    data = event.get("data", {})
+    collected_at = event.get("collected_at")
+    user = data.get("user", {})
 
 
-def _subscribe_row(p: dict) -> tuple:
-    d = p["data"]
-    u = d["user"]
-    return (p["collected_at"], p["streamer"], u["uniqueId"], u["nickname"])
+    uid = user.get("uniqueId")
+    nick = user.get("nickname")
 
+    action = data.get("action", "interaction")
+
+
+
+    return (collected_at, uid, nick, action)
+
+
+def _subscribe_row(event: dict) -> tuple:
+    data = event.get("data", {})
+    collected_at = event.get("collected_at")
+    user = data.get("user", {})
+
+
+    uid = user.get("uniqueId")
+    nick = user.get("nickname")
+
+
+
+    return (collected_at, uid, nick)
 
 ROW_BUILDERS = {
     "chat": ("chat", _chat_row),
