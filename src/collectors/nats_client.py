@@ -5,9 +5,10 @@ one place.
 from __future__ import annotations
 
 import os
-import sys
 import subprocess
 import time
+import docker
+from docker.errors import APIError, DockerException, NotFound
 
 import nats
 from nats.aio.client import Client as NATSClient
@@ -22,22 +23,60 @@ SUBJECT_PREFIX = "tiktok.events"
 def subject_for(event_type: str) -> str:
     return f"{SUBJECT_PREFIX}.{event_type}"
 
-def ensure_nats_server(name: str = "nats-server") -> None:
-    """Ensure NATS JetStream container is running."""
-    res = subprocess.run(f"docker inspect -f '{{{{.State.Running}}}}' {name}", shell=True, capture_output=True, text=True)
+
+def start_docker_daemon(timeout_seconds: int = 30) -> None:
+    """Attempts to launch OrbStack or Docker Desktop on macOS and waits for daemon."""
+    print("Docker daemon not running. Attempting to start...")
     
-    if res.returncode != 0 and "Cannot connect to the Docker daemon" in res.stderr:
-        sys.exit("Error: Docker daemon is not running. Please start Docker/OrbStack and try again.")
-        
-    if "true" not in res.stdout:
-        print('Starting NATS SERVER')
-        cmd = f"docker start {name}" if res.returncode == 0 else f"docker run -d --name {name} -p 4222:4222 nats -js"
-        subprocess.run(cmd, shell=True, check=True)
+    # Try OrbStack first, fall back to Docker Desktop
+    try:
+        subprocess.run(["open", "-a", "OrbStack"], check=True, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        try:
+            subprocess.run(["open", "-a", "Docker"], check=True, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            raise RuntimeError("Neither OrbStack nor Docker Desktop is installed.")
+
+    # Poll until socket responds
+    start_time = time.time()
+    while time.time() - start_time < timeout_seconds:
+        res = subprocess.run(["docker", "info"], capture_output=True)
+        if res.returncode == 0:
+            print("Docker daemon started successfully.")
+            return
         time.sleep(1)
 
-        
+    raise TimeoutError(f"Docker daemon failed to start within {timeout_seconds} seconds.")
 
+def ensure_nats_server(name: str = "nats-server") -> None:
+    """Ensure NATS JetStream container is running using Docker Python SDK."""
+    try:
+        client = docker.from_env()
+        # Ping daemon to fail fast if down
+        client.ping()
+    except:
+        start_docker_daemon(5)
+        client = docker.from_env()
 
+    # Step 2: Ensure container is running
+    try:
+        container = client.containers.get(name)
+        if container.status != "running":
+            print(f"Starting stopped container '{name}'...")
+            container.start()
+            time.sleep(1)
+    except NotFound:
+        print(f"Creating and starting container '{name}'...")
+        client.containers.run(
+            "nats",
+            command="-js",
+            name=name,
+            ports={"4222/tcp": 4222},
+            detach=True
+        )
+        time.sleep(1)
+
+    
 
 async def connect() -> tuple[NATSClient, JetStreamContext]:
     """Connect to NATS and return (raw client, JetStream context)."""
