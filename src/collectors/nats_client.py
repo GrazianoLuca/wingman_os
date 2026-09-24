@@ -30,9 +30,12 @@ def ensure_nats_server(name: str = "nats-server") -> None:
         sys.exit("Error: Docker daemon is not running. Please start Docker/OrbStack and try again.")
         
     if "true" not in res.stdout:
+        print('Starting NATS SERVER')
         cmd = f"docker start {name}" if res.returncode == 0 else f"docker run -d --name {name} -p 4222:4222 nats -js"
         subprocess.run(cmd, shell=True, check=True)
         time.sleep(1)
+
+        
 
 
 
